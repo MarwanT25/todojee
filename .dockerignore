@@ -1,0 +1,8 @@
+.git 
+target
+.idea
+.vscode
+*.log
+ansible
+k8s
+
