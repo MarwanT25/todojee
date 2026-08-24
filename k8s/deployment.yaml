@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: todo-javaee
+  namespace: todo
+  labels:
+    app: todo-javaee
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: todo-javaee
+  template:
+    metadata:
+      labels:
+        app: todo-javaee
+    spec:
+      containers:
+        - name: todo-javaee
+          image: todo-javaee:minikube
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 8080
+          startupProbe:
+            httpGet:
+              path: /api/todos
+              port: 8080
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /api/todos
+              port: 8080
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /api/todos
+              port: 8080
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi

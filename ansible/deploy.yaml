@@ -1,0 +1,79 @@
+---
+- name: Deploy Todo Java EE to Minikube
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    kube_context: minikube
+    namespace: todo
+    project_root: "{{ playbook_dir }}/.."
+    manifests:
+      - "{{ project_root }}/k8s/namespace.yaml"
+      - "{{ project_root }}/k8s/deployment.yaml"
+      - "{{ project_root }}/k8s/service.yaml"
+
+  tasks:
+    - name: Ensure kubectl can see the minikube context
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - config
+          - get-contexts
+          - "{{ kube_context }}"
+      register: context_check
+      changed_when: false
+
+    - name: Apply Kubernetes manifests
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - --context
+          - "{{ kube_context }}"
+          - apply
+          - -f
+          - "{{ item }}"
+      loop: "{{ manifests }}"
+
+    - name: Update image tag when provided
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - --context
+          - "{{ kube_context }}"
+          - -n
+          - "{{ namespace }}"
+          - set
+          - image
+          - deployment/todo-javaee
+          - "todo-javaee=todo-javaee:{{ image_tag }}"
+      when: image_tag is defined and image_tag != ''
+      register: set_image_result
+      changed_when: false
+
+    - name: Restart deployment so the local image is picked up
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - --context
+          - "{{ kube_context }}"
+          - -n
+          - "{{ namespace }}"
+          - rollout
+          - restart
+          - deployment/todo-javaee
+      changed_when: true
+
+    - name: Wait for deployment rollout
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - --context
+          - "{{ kube_context }}"
+          - -n
+          - "{{ namespace }}"
+          - rollout
+          - status
+          - deployment/todo-javaee
+          - --timeout=300s
+      changed_when: false
